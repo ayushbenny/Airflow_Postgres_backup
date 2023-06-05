@@ -1,0 +1,56 @@
+# Set the version of Docker Compose file being used
+version: '3.7'
+
+# Define and configure two services, postgres and webserver
+services:
+  postgres:
+    # Use the official Postgres image version 9.6 as the base image
+    image: postgres:9.6
+    # Set environment variables for Postgres user, password, and default database name
+    environment:
+      - POSTGRES_USER=airflow
+      - POSTGRES_PASSWORD=airflow
+      - POSTGRES_DB=airflow
+    # Configure logging options, limiting each log file to a maximum size of 10MB and keeping a maximum of 3 files
+    logging:
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  webserver:
+    # Build an image using the Dockerfile in the current directory
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # Restart this container always if it crashes or is stopped, unless explicitly stopped by the user
+    restart: always
+    # Depend on the Postgres service, starting up only after it has started successfully
+    depends_on:
+      - postgres
+    # Set environment variables for use in the Airflow webserver container
+    environment:
+      - LOAD_EX=n
+      - EXECUTOR=Local
+    # Configure logging options, limiting each log file to a maximum size of 10MB and keeping a maximum of 3 files
+    logging:
+      options:
+        max-size: 10m
+        max-file: "3"
+    # Mount the local 'dags' directory to the '/usr/local/airflow/dags' directory in the container
+    volumes:
+      - ./dags:/usr/local/airflow/dags
+    # Expose port 8080 on the local machine to port 8080 in the container
+    ports:
+      - "8080:8080"
+    # Start the webserver when the container is run
+    command: webserver
+    # Set up a healthcheck that runs every 30 seconds, with a timeout of 30 seconds and 3 retries
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "[ -f /usr/local/airflow/airflow-webserver.pid ]"
+        ]
+      interval: 30s
+      timeout: 30s
+      retries: 3
